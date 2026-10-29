@@ -15,10 +15,13 @@ jobs:
 
     - name: Unzip 8BallPool project
       run: |
-        if [ -f "8BallPool-main.zip" ]; then
-          echo "Unzipping 8BallPool-main.zip..."
-          unzip -o 8BallPool-main.zip
-        fi
+        # فك ضغط أي ملف ZIP موجود في المستودع تلقائياً
+        for f in *.zip; do
+          if [ -f "$f" ]; then
+            echo "Unzipping $f..."
+            unzip -o "$f"
+          fi
+        done
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -26,28 +29,22 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Grant execute permission for gradlew
+    - name: Find and Build APK with Gradle
       run: |
-        # البحث عن ملف gradlew داخل المجلدات المفكوكة ومنحه صلاحية التنفيذ
-        find . -name "gradlew" -exec chmod +x {} \;
-
-    - name: Build APK with Gradle
-      run: |
-        # البحث عن مجلد المشروع الرئيسي الذي يحتوي على gradlew وبناء التطبيق
-        if [ -f "./gradlew" ]; then
-          ./gradlew assembleDebug
-        elif [ -f "./8BallPool-main/gradlew" ]; then
-          cd 8BallPool-main && ./gradlew assembleDebug
-        else
-          # محاولة البحث التلقائي
-          BUILD_DIR=$(find . -name "gradlew" -maxdepth 3 | xargs dirname)
-          if [ ! -z "$BUILD_DIR" ]; then
-            cd "$BUILD_DIR" && ./gradlew assembleDebug
-          else
-            echo "Gradlew not found!"
-            exit 1
-          fi
+        # البحث عن مجلد يحتوي على gradlew والتعرف عليه
+        GRADLEW_PATH=$(find . -name "gradlew" -type f -print -quit)
+        
+        if [ -z "$GRADLEW_PATH" ]; then
+          echo "Error: gradlew file not found!"
+          exit 1
         fi
+        
+        PROJECT_DIR=$(dirname "$GRADLEW_PATH")
+        echo "Found project at: $PROJECT_DIR"
+        
+        cd "$PROJECT_DIR"
+        chmod +x gradlew
+        ./gradlew assembleDebug
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
